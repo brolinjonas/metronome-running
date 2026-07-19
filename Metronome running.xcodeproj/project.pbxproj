@@ -43,8 +43,6 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		D52DEC7C300CBB87005F436D /* Metronome running Watch App */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-			);
 			path = "Metronome running Watch App";
 			sourceTree = "<group>";
 		};
