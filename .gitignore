@@ -10,3 +10,7 @@ DerivedData/
 
 # Claude Code local settings
 .claude/settings.local.json
+
+# Swift Package Manager
+.build/
+.swiftpm/
