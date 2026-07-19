@@ -9,6 +9,7 @@ final class MetronomeEngine {
     private let scheduleAheadSeconds = 4.0
     private var nextClickSampleTime: AVAudioFramePosition = 0
     private var schedulingTimer: Timer?
+    private var configurationChangeObserver: NSObjectProtocol?
 
     var bpm: Int = BPM.defaultValue {
         didSet {
@@ -26,19 +27,32 @@ final class MetronomeEngine {
         self.clickBuffer = Self.makeClickBuffer(format: format)
         engine.attach(player)
         engine.connect(player, to: engine.mainMixerNode, format: format)
+        // Route/hardware changes (e.g. connecting AirPods) reconfigure the
+        // engine's I/O and stop rendering; without observing this the engine
+        // silently goes quiet while callers still think it's playing.
+        configurationChangeObserver = NotificationCenter.default.addObserver(
+            forName: NSNotification.Name.AVAudioEngineConfigurationChange,
+            object: engine,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.handleConfigurationChange()
+            }
+        }
+    }
+
+    deinit {
+        if let configurationChangeObserver {
+            NotificationCenter.default.removeObserver(configurationChangeObserver)
+        }
     }
 
     func start() throws {
         guard schedulingTimer == nil else { return }
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default)
+        try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         try session.setActive(true)
-        if !engine.isRunning {
-            try engine.start()
-        }
-        nextClickSampleTime = 0
-        scheduleClicks(through: aheadHorizon())
-        player.play()
+        try resumePlayback()
         schedulingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             self?.topUpSchedule()
         }
@@ -50,6 +64,20 @@ final class MetronomeEngine {
         player.stop()
         engine.stop()
         try? AVAudioSession.sharedInstance().setActive(false)
+    }
+
+    private func resumePlayback() throws {
+        if !engine.isRunning {
+            try engine.start()
+        }
+        nextClickSampleTime = 0
+        scheduleClicks(through: aheadHorizon())
+        player.play()
+    }
+
+    private func handleConfigurationChange() {
+        guard schedulingTimer != nil else { return }
+        try? resumePlayback()
     }
 
     private func aheadHorizon() -> AVAudioFramePosition {
