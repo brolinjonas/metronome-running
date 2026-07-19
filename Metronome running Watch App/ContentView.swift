@@ -8,12 +8,25 @@
 import SwiftUI
 
 struct ContentView: View {
+    @StateObject private var viewModel = MetronomeViewModel()
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        VStack(spacing: 8) {
+            Text("\(viewModel.bpm)")
+                .font(.system(size: 40, weight: .bold))
+            Text("BPM")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            HStack(spacing: 12) {
+                Button("-1") { viewModel.decrement() }
+                Button("+1") { viewModel.increment() }
+            }
+
+            Button(viewModel.isPlaying ? "Stop" : "Play") {
+                viewModel.togglePlayback()
+            }
+            .tint(viewModel.isPlaying ? .red : .green)
         }
         .padding()
     }
