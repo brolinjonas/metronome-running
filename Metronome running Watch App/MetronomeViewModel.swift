@@ -7,6 +7,7 @@ import MetronomeCore
 final class MetronomeViewModel: ObservableObject {
     @Published private(set) var bpm: Int
     @Published private(set) var isPlaying = false
+    @Published private(set) var isStarting = false
 
     private let engine: MetronomeEngine
     private let defaults: UserDefaults
@@ -38,9 +39,13 @@ final class MetronomeViewModel: ObservableObject {
     }
 
     func togglePlayback() {
-        if isPlaying {
+        if isPlaying || isStarting {
+            // Stopping while a start is still activating the audio session
+            // cancels that activation (the engine's generation counter makes
+            // the in-flight start throw instead of resuming playback).
             engine.stop()
             isPlaying = false
+            isStarting = false
         } else {
             startEngine()
         }
@@ -54,6 +59,8 @@ final class MetronomeViewModel: ObservableObject {
     }
 
     private func startEngine() {
+        guard !isStarting else { return }
+        isStarting = true
         Task {
             do {
                 try await engine.start()
@@ -61,6 +68,7 @@ final class MetronomeViewModel: ObservableObject {
             } catch {
                 isPlaying = false
             }
+            isStarting = false
         }
     }
 

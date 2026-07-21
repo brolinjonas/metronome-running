@@ -60,7 +60,19 @@ final class MetronomeEngine {
         // policy (routed to Bluetooth output) activated asynchronously, and
         // long-form sessions reject the mixWithOthers option.
         try session.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
-        let activated = try await session.activate(options: [])
+        // On a cold launch the Bluetooth audio link often has to be
+        // re-established, and the first long-form activation can transiently
+        // fail or stall while that happens — retry before giving up. A
+        // `false` result means the user declined the route picker, which is
+        // a final answer and is not retried.
+        let activated = try await Retry.run(
+            attempts: 3,
+            beforeRetry: {
+                try await Task.sleep(for: .milliseconds(300))
+                guard generation == self.startGeneration else { throw CancellationError() }
+            },
+            operation: { try await session.activate(options: []) }
+        )
         // Activation can suspend on a route picker; bail out if the user
         // declined a route or stop() was called while we waited.
         guard activated, generation == startGeneration, schedulingTimer == nil else {
