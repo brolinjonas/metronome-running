@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3F136D5A648894E07BA0222A /* MetronomeCore in Frameworks */ = {isa = PBXBuildFile; productRef = 683B4774D6D1544FCE0A3ECB /* MetronomeCore */; };
 		D52DEC79300CBB87005F436D /* Metronome running Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = D52DEC78300CBB87005F436D /* Metronome running Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -52,6 +53,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3F136D5A648894E07BA0222A /* MetronomeCore in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,8 +93,6 @@
 				D52DEC7B300CBB87005F436D /* PBXTargetDependency */,
 			);
 			name = "Metronome running";
-			packageProductDependencies = (
-			);
 			productName = "Metronome running";
 			productReference = D52DEC72300CBB87005F436D /* Metronome running.app */;
 			productType = "com.apple.product-type.application.watchapp2-container";
@@ -114,6 +114,7 @@
 			);
 			name = "Metronome running Watch App";
 			packageProductDependencies = (
+				683B4774D6D1544FCE0A3ECB /* MetronomeCore */,
 			);
 			productName = "Metronome running Watch App";
 			productReference = D52DEC78300CBB87005F436D /* Metronome running Watch App.app */;
@@ -146,6 +147,9 @@
 			);
 			mainGroup = D52DEC6B300CBB86005F436D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C8FC0D6246A3B088240E1B79 /* XCLocalSwiftPackageReference "MetronomeCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D52DEC73300CBB87005F436D /* Products */;
 			projectDirPath = "";
@@ -314,9 +318,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 79ZSU65BML;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Metronome running Watch App/Metronome-running-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Metronome running";
+				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -346,9 +353,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 79ZSU65BML;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Metronome running Watch App/Metronome-running-Watch-App-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Metronome running";
+				INFOPLIST_KEY_UIBackgroundModes = audio;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKWatchOnly = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -377,6 +387,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 79ZSU65BML;
 				INFOPLIST_KEY_CFBundleDisplayName = "Metronome running";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Jonasbrolin.Metronome-running";
@@ -393,6 +404,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 79ZSU65BML;
 				INFOPLIST_KEY_CFBundleDisplayName = "Metronome running";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "Jonasbrolin.Metronome-running";
@@ -436,6 +448,21 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		C8FC0D6246A3B088240E1B79 /* XCLocalSwiftPackageReference "MetronomeCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = MetronomeCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		683B4774D6D1544FCE0A3ECB /* MetronomeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C8FC0D6246A3B088240E1B79 /* XCLocalSwiftPackageReference "MetronomeCore" */;
+			productName = MetronomeCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D52DEC6C300CBB86005F436D /* Project object */;
 }
