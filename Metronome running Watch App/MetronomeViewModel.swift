@@ -2,9 +2,14 @@ import Foundation
 import Combine
 import AVFoundation
 import MetronomeCore
+import os
 
 @MainActor
 final class MetronomeViewModel: ObservableObject {
+    private static let log = Logger(
+        subsystem: "com.brolinjonas.metronome-running", category: "viewmodel"
+    )
+
     @Published private(set) var bpm: Int
     @Published private(set) var isPlaying = false
     @Published private(set) var isStarting = false
@@ -66,6 +71,9 @@ final class MetronomeViewModel: ObservableObject {
                 try await engine.start()
                 isPlaying = true
             } catch {
+                Self.log.error(
+                    "engine start failed: \(String(describing: error), privacy: .public)"
+                )
                 isPlaying = false
             }
             isStarting = false
