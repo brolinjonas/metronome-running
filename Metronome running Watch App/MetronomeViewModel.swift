@@ -2,11 +2,17 @@ import Foundation
 import Combine
 import AVFoundation
 import MetronomeCore
+import os
 
 @MainActor
 final class MetronomeViewModel: ObservableObject {
+    private static let log = Logger(
+        subsystem: "com.brolinjonas.metronome-running", category: "viewmodel"
+    )
+
     @Published private(set) var bpm: Int
     @Published private(set) var isPlaying = false
+    @Published private(set) var isStarting = false
 
     private let engine: MetronomeEngine
     private let defaults: UserDefaults
@@ -38,10 +44,18 @@ final class MetronomeViewModel: ObservableObject {
     }
 
     func togglePlayback() {
-        if isPlaying {
+        if isPlaying || isStarting {
+            // Stopping while a start is still activating the audio session
+            // cancels that activation (the engine's generation counter makes
+            // the in-flight start throw instead of resuming playback).
+            Self.log.notice(
+                "user toggle: stopping (isPlaying=\(self.isPlaying) isStarting=\(self.isStarting))"
+            )
             engine.stop()
             isPlaying = false
+            isStarting = false
         } else {
+            Self.log.notice("user toggle: starting")
             startEngine()
         }
     }
@@ -54,13 +68,19 @@ final class MetronomeViewModel: ObservableObject {
     }
 
     private func startEngine() {
+        guard !isStarting else { return }
+        isStarting = true
         Task {
             do {
                 try await engine.start()
                 isPlaying = true
             } catch {
+                Self.log.error(
+                    "engine start failed: \(String(describing: error), privacy: .public)"
+                )
                 isPlaying = false
             }
+            isStarting = false
         }
     }
 
@@ -84,11 +104,23 @@ final class MetronomeViewModel: ObservableObject {
 
         switch type {
         case .began:
+            // A failed cold-launch session-setup attempt can emit a spurious
+            // interruption while start() is still retrying. The session isn't
+            // active yet, so there is nothing to interrupt — stopping here
+            // would cancel the in-flight start's retry loop.
+            if isStarting && !isPlaying {
+                Self.log.notice("interruption began ignored: start in flight")
+                return
+            }
+            Self.log.notice("interruption began: stopping")
             engine.stop()
             isPlaying = false
         case .ended:
             let rawOptions = info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
-            if AVAudioSession.InterruptionOptions(rawValue: rawOptions).contains(.shouldResume) {
+            let shouldResume = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
+                .contains(.shouldResume)
+            Self.log.notice("interruption ended: shouldResume=\(shouldResume)")
+            if shouldResume {
                 startEngine()
             }
         @unknown default:

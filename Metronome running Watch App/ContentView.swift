@@ -23,12 +23,24 @@ struct ContentView: View {
                 Button("+1") { viewModel.increment() }
             }
 
-            Button(viewModel.isPlaying ? "Stop" : "Play") {
+            Button(playButtonTitle) {
                 viewModel.togglePlayback()
             }
-            .tint(viewModel.isPlaying ? .red : .green)
+            .tint(playButtonTint)
         }
         .padding()
+    }
+
+    private var playButtonTitle: String {
+        if viewModel.isPlaying { return "Stop" }
+        if viewModel.isStarting { return "Starting…" }
+        return "Play"
+    }
+
+    private var playButtonTint: Color {
+        if viewModel.isPlaying { return .red }
+        if viewModel.isStarting { return .orange }
+        return .green
     }
 }
 
