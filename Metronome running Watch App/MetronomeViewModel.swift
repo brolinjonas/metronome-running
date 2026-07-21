@@ -13,13 +13,13 @@ final class MetronomeViewModel: ObservableObject {
     private static let bpmDefaultsKey = "metronome.bpm"
     private var interruptionObserver: NSObjectProtocol?
 
-    init(engine: MetronomeEngine = MetronomeEngine(), defaults: UserDefaults = .standard) {
-        self.engine = engine
+    init(engine: MetronomeEngine? = nil, defaults: UserDefaults = .standard) {
+        self.engine = engine ?? MetronomeEngine()
         self.defaults = defaults
         let storedValue = defaults.integer(forKey: Self.bpmDefaultsKey)
         let initialBPM = storedValue == 0 ? BPM.defaultValue : BPM.clamp(storedValue)
         self.bpm = initialBPM
-        engine.bpm = initialBPM
+        self.engine.bpm = initialBPM
         observeInterruptions()
     }
 
@@ -54,11 +54,13 @@ final class MetronomeViewModel: ObservableObject {
     }
 
     private func startEngine() {
-        do {
-            try engine.start()
-            isPlaying = true
-        } catch {
-            isPlaying = false
+        Task {
+            do {
+                try await engine.start()
+                isPlaying = true
+            } catch {
+                isPlaying = false
+            }
         }
     }
 

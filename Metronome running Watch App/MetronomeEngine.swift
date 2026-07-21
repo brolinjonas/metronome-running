@@ -1,6 +1,7 @@
 import AVFoundation
 import MetronomeCore
 
+@MainActor
 final class MetronomeEngine {
     private let engine = AVAudioEngine()
     private let player = AVAudioPlayerNode()
@@ -10,6 +11,7 @@ final class MetronomeEngine {
     private var nextClickSampleTime: AVAudioFramePosition = 0
     private var schedulingTimer: Timer?
     private var configurationChangeObserver: NSObjectProtocol?
+    private var startGeneration = 0
 
     var bpm: Int = BPM.defaultValue {
         didSet {
@@ -47,18 +49,33 @@ final class MetronomeEngine {
         }
     }
 
-    func start() throws {
+    func start() async throws {
         guard schedulingTimer == nil else { return }
+        startGeneration += 1
+        let generation = startGeneration
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-        try session.setActive(true)
+        // watchOS suspends audio sessions that use the default route-sharing
+        // policy as soon as the app is backgrounded, even with the "audio"
+        // background mode enabled. Background playback requires the long-form
+        // policy (routed to Bluetooth output) activated asynchronously, and
+        // long-form sessions reject the mixWithOthers option.
+        try session.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
+        let activated = try await session.activate(options: [])
+        // Activation can suspend on a route picker; bail out if the user
+        // declined a route or stop() was called while we waited.
+        guard activated, generation == startGeneration, schedulingTimer == nil else {
+            throw CancellationError()
+        }
         try resumePlayback()
         schedulingTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.topUpSchedule()
+            Task { @MainActor in
+                self?.topUpSchedule()
+            }
         }
     }
 
     func stop() {
+        startGeneration += 1
         schedulingTimer?.invalidate()
         schedulingTimer = nil
         player.stop()
