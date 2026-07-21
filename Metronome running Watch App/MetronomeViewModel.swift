@@ -18,6 +18,11 @@ final class MetronomeViewModel: ObservableObject {
     private let defaults: UserDefaults
     private static let bpmDefaultsKey = "metronome.bpm"
     private var interruptionObserver: NSObjectProtocol?
+    private var routeChangeObserver: NSObjectProtocol?
+    // Set when an interruption (not the user) stopped playback. watchOS never
+    // delivers interruption .ended after a Bluetooth link drop, so a route
+    // return is the only signal that playback can resume.
+    private var stoppedByInterruptionAt: Date?
 
     init(engine: MetronomeEngine? = nil, defaults: UserDefaults = .standard) {
         self.engine = engine ?? MetronomeEngine()
@@ -27,11 +32,15 @@ final class MetronomeViewModel: ObservableObject {
         self.bpm = initialBPM
         self.engine.bpm = initialBPM
         observeInterruptions()
+        observeRouteChanges()
     }
 
     deinit {
         if let interruptionObserver {
             NotificationCenter.default.removeObserver(interruptionObserver)
+        }
+        if let routeChangeObserver {
+            NotificationCenter.default.removeObserver(routeChangeObserver)
         }
     }
 
@@ -54,6 +63,7 @@ final class MetronomeViewModel: ObservableObject {
             engine.stop()
             isPlaying = false
             isStarting = false
+            stoppedByInterruptionAt = nil
         } else {
             Self.log.notice("user toggle: starting")
             startEngine()
@@ -74,6 +84,7 @@ final class MetronomeViewModel: ObservableObject {
             do {
                 try await engine.start()
                 isPlaying = true
+                stoppedByInterruptionAt = nil
             } catch {
                 Self.log.error(
                     "engine start failed: \(String(describing: error), privacy: .public)"
@@ -96,6 +107,43 @@ final class MetronomeViewModel: ObservableObject {
         }
     }
 
+    private func observeRouteChanges() {
+        routeChangeObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor in
+                self?.handleRouteChange(notification)
+            }
+        }
+    }
+
+    // watchOS never delivers interruption .ended after a Bluetooth link drop,
+    // so the .shouldResume path can't fire for those stops. Instead, when the
+    // route returns (.newDeviceAvailable) shortly after an interruption
+    // stopped playback, restart it; the policy window keeps headphones
+    // reconnecting much later from surprise-starting the metronome.
+    private func handleRouteChange(_ notification: Notification) {
+        guard let info = notification.userInfo,
+              let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue),
+              reason == .newDeviceAvailable
+        else { return }
+
+        guard !isPlaying, !isStarting else { return }
+        guard RouteResumePolicy.shouldResume(
+            stoppedByInterruptionAt: stoppedByInterruptionAt,
+            routeReturnedAt: Date()
+        ) else { return }
+
+        // stoppedByInterruptionAt stays set until the start succeeds, so a
+        // start that fails while the route is still settling can retry on the
+        // next route return.
+        Self.log.notice("route returned after interruption stop: restarting")
+        startEngine()
+    }
+
     private func handleInterruption(_ notification: Notification) {
         guard let info = notification.userInfo,
               let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
@@ -113,6 +161,12 @@ final class MetronomeViewModel: ObservableObject {
                 return
             }
             Self.log.notice("interruption began: stopping")
+            // Only an interruption that actually stopped playback arms the
+            // route-return auto-restart; a .began while already stopped must
+            // not revive playback the user chose to stop.
+            if isPlaying {
+                stoppedByInterruptionAt = Date()
+            }
             engine.stop()
             isPlaying = false
         case .ended:
@@ -122,6 +176,10 @@ final class MetronomeViewModel: ObservableObject {
             Self.log.notice("interruption ended: shouldResume=\(shouldResume)")
             if shouldResume {
                 startEngine()
+            } else {
+                // The system explicitly declined a resume; a later route
+                // return should not restart playback either.
+                stoppedByInterruptionAt = nil
             }
         @unknown default:
             break
