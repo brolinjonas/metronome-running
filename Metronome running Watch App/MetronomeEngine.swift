@@ -80,33 +80,38 @@ final class MetronomeEngine {
         let generation = startGeneration
         Self.log.notice("start requested (generation \(generation))")
         let session = AVAudioSession.sharedInstance()
-        // watchOS suspends audio sessions that use the default route-sharing
-        // policy as soon as the app is backgrounded, even with the "audio"
-        // background mode enabled. Background playback requires the long-form
-        // policy (routed to Bluetooth output) activated asynchronously, and
-        // long-form sessions reject the mixWithOthers option.
-        try session.setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
-        // On a cold launch the Bluetooth audio link often has to be
-        // re-established, and the first long-form activation can transiently
-        // fail or stall while that happens — retry before giving up. A
-        // `false` result means the user declined the route picker, which is
-        // a final answer and is not retried.
+        // On a cold launch the audio server may not be ready: setCategory
+        // itself can fail with '!res' (OSStatus 561145203, "Resource not
+        // available"), and the first long-form activation can transiently
+        // fail while the Bluetooth link is re-established. Both must sit
+        // inside the retry loop. A `false` activation result means the user
+        // declined the route picker, which is a final answer and is not
+        // retried.
         var attempt = 0
         let activated = try await Retry.run(
-            attempts: 3,
+            attempts: 5,
             beforeRetry: {
-                try await Task.sleep(for: .milliseconds(300))
+                try await Task.sleep(for: .milliseconds(400))
                 guard generation == self.startGeneration else { throw CancellationError() }
             },
             operation: {
                 attempt += 1
                 do {
+                    // watchOS suspends audio sessions that use the default
+                    // route-sharing policy as soon as the app is backgrounded,
+                    // even with the "audio" background mode enabled.
+                    // Background playback requires the long-form policy
+                    // (routed to Bluetooth output) activated asynchronously,
+                    // and long-form sessions reject the mixWithOthers option.
+                    try session.setCategory(
+                        .playback, mode: .default, policy: .longFormAudio, options: []
+                    )
                     let result = try await session.activate(options: [])
                     Self.log.notice("session activation attempt \(attempt) returned \(result)")
                     return result
                 } catch {
                     Self.log.error(
-                        "session activation attempt \(attempt) failed: \(String(describing: error), privacy: .public)"
+                        "session setup attempt \(attempt) failed: \(String(describing: error), privacy: .public)"
                     )
                     throw error
                 }
